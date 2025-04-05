@@ -3,7 +3,7 @@ from setuptools import setup
 from pyinstaller_gui import __version__ as version
 
 setup(
-    name="PyInstaller GUI",
+    name="pyinstaller-gui",
     version=version,
     url="https://github.com/inject3r/pyinstaller-gui",
     license="MIT",
@@ -19,7 +19,7 @@ setup(
     keywords = ["gui", "executable", "pyinstaller", "python", "converter", "cross-platform", "windows", "macos", "linux", "build tool", "script to exe", "python packaging", "application builder", "standalone app", "no coding", "desktop app", "code bundler"],
     packages=["pyinstaller_gui"],
     include_package_data=True,
-    install_requires=["PyQt6>=6.8.1", "PyInstaller>=6.11.1"],
+    install_requires=["PyQt6>=6.8.1", "pyinstaller>=6.11.1"],
     python_requires=">=3.6",
     classifiers=[
         "License :: OSI Approved :: MIT License",
