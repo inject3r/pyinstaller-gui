@@ -1,0 +1,2 @@
+PROJECT_NAME = "PyInstaller GUI"
+PROJECT_VERSION = "1.0.0"
