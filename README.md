@@ -16,7 +16,7 @@ A powerful GUI wrapper for PyInstaller — convert your Python scripts into stan
 You can install PyInstaller GUI via pip:
 
 ```bash
-pip install pyinstaller-gui
+pip install --upgrade pyinstaller-gui
 ```
 
 Or, if you prefer to clone the repository directly:
