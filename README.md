@@ -2,6 +2,8 @@
 
 A powerful GUI wrapper for PyInstaller — convert your Python scripts into standalone executables for Windows, macOS, and Linux with ease.
 
+![Screenshot](/screenshot/screenshot_1.jpg)
+
 ## Features
 
 - **Cross-platform support**: Convert your Python scripts into executables for Windows, macOS, and Linux.
