@@ -1,13 +1,12 @@
 import subprocess
-from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QPushButton, QFileDialog, QTabWidget, QComboBox,
     QCheckBox, QLineEdit, QLabel, QHBoxLayout, QTextEdit, QGroupBox, QTreeWidget, QTreeWidgetItem
 )
 
-from pyinstaller_thread import PyInstallerThread
-from styles import STYLE_SHEET, GITHUB_BUTTON_STYLE, PROJECT_NAME_STYLE, PROJECT_VERSION_STYLE
-from project_info import *
+from .pyinstaller_thread import PyInstallerThread
+from .styles import STYLE_SHEET, GITHUB_BUTTON_STYLE, PROJECT_NAME_STYLE, PROJECT_VERSION_STYLE
+from .project_info import *
 
 class PyInstallerGUI(QWidget):
     def __init__(self):
@@ -224,10 +223,8 @@ class PyInstallerGUI(QWidget):
 
         self.setLayout(layout)
 
-        # Display versions
         self.display_versions()
 
-        # Connect signals to update the command instantly
         self.script_path.textChanged.connect(self.update_command)
         self.app_name_input.textChanged.connect(self.update_command)
         self.onefile_checkbox.toggled.connect(self.update_command)
