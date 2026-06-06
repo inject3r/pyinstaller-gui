@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyinstaller-gui"
+dynamic = ["version"]
+license = { text = "MIT" }
+authors = [
+    { name = "Abolfazl Hosseini", email = "tryuzr@gmail.com" }
+]
+description = "A powerful GUI wrapper for PyInstaller — convert your Python scripts into standalone executables for Windows, macOS, and Linux with ease."
+readme = "README.md"
+requires-python = ">=3.6"
+keywords = ["gui", "executable", "pyinstaller", "python", "converter", "cross-platform", "windows", "macos", "linux", "build tool", "script to exe", "python packaging", "application builder", "standalone app", "no coding", "desktop app", "code bundler"]
+dependencies = [
+    "PyQt6>=6.8.1",
+    "pyinstaller>=6.11.1"
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Source Code" = "https://github.com/inject3r/pyinstaller-gui"
+"Bug Tracker" = "https://github.com/inject3r/pyinstaller-gui/issues"
+
+[project.scripts]
+pyinstaller-gui = "pyinstaller_gui.__main__:run"
+pyinstallergui = "pyinstaller_gui.__main__:run"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["pyinstaller_gui*"]
+
+[tool.setuptools.dynamic]
+version = { attr = "pyinstaller_gui.__version__" }
