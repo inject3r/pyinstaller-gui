@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.jpg" alt="PyInstaller GUI Logo">
+  <img src="https://github.com/inject3r/pyinstaller-gui/blob/main/logo.jpg?raw=true" alt="PyInstaller GUI Logo">
 </p>
 
 <!-- # PyInstaller GUI -->
