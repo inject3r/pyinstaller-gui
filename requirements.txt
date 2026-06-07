@@ -1,2 +1,0 @@
-PyQt6==6.8.1
-PyInstaller==6.11.1
