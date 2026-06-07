@@ -43,8 +43,77 @@ pyinstallergui = "pyinstaller_gui.__main__:run"
 [tool.setuptools]
 include-package-data = true
 
+[tool.setuptools.package-data]
+pyinstaller_gui = ["*.ico", "icons/*.svg"]
+
 [tool.setuptools.packages.find]
 include = ["pyinstaller_gui*"]
 
 [tool.setuptools.dynamic]
 version = { attr = "pyinstaller_gui.__version__" }
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = [
+    "tests",
+]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "slow: marks tests as slow",
+    "gui: marks tests that require GUI",
+    "integration: marks integration tests",
+]
+
+[tool.coverage.run]
+source = ["pyinstaller_gui"]
+omit = [
+    "*/tests/*",
+    "*/__main__.py",
+    "*/gui.py",
+    "*/styles/*",
+    "*/widgets/*",
+    "*/tabs/*",
+    "*/workers/*",
+]
+data_file = "tests/.coverage"
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if __name__ == .__main__.:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if False:",
+]
+omit = [
+    "*/tests/*",
+    "*/__main__.py",
+    "*/gui.py",
+    "*/styles/*",
+    "*/widgets/*",
+    "*/tabs/*",
+    "*/workers/*",
+]
+precision = 2
+show_missing = true
+skip_covered = false
+
+[tool.coverage.html]
+directory = "tests/coverage_html"
+title = "PyInstaller GUI Coverage Report"
+
+[tool.coverage.xml]
+output = "tests/report/coverage.xml"
+
+[tool.coverage.json]
+output = "tests/report/coverage.json"

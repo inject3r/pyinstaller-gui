@@ -1,404 +1,529 @@
 import subprocess
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QPushButton, QFileDialog, QTabWidget, QComboBox,
-    QCheckBox, QLineEdit, QLabel, QHBoxLayout, QTextEdit, QGroupBox, QTreeWidget, QTreeWidgetItem
-)
+import webbrowser
+import os
+from pathlib import Path
 
-from .pyinstaller_thread import PyInstallerThread
-from .styles import STYLE_SHEET, GITHUB_BUTTON_STYLE, PROJECT_NAME_STYLE, PROJECT_VERSION_STYLE
-from .project_info import *
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QPushButton, QTabWidget, QHBoxLayout,
+    QTextEdit, QLabel, QMessageBox
+)
+from PyQt6.QtGui import QIcon, QPainter, QColor, QPixmap
+from PyQt6.QtCore import Qt
+
+from .core.config_manager import ConfigManager
+from .core.command_builder import CommandBuilder
+from .core.version_checker import VersionChecker
+from .models.build_config import BuildConfig
+from .models.file_item import FileItem, FileType
+from .workers.pyinstaller_worker import PyInstallerWorker
+from .widgets.header_widget import HeaderWidget
+from .widgets.output_widget import OutputWidget
+from .widgets.version_widget import VersionWidget
+from .tabs.general_tab import GeneralTab
+from .tabs.files_tab import FilesTab
+from .tabs.advanced_tab import AdvancedTab
+from .tabs.settings_tab import SettingsTab
+from .tabs.config_tab import ConfigTab
+from .styles.themes import get_stylesheet
+
 
 class PyInstallerGUI(QWidget):
+    """
+    Main GUI window for PyInstaller wrapper.
+    
+    This is the main application window that integrates all tabs and widgets.
+    It manages the build configuration, coordinates between different UI
+    components, and handles the PyInstaller execution process.
+    
+    The window consists of:
+    - Header: Title, version, theme toggle, and GitHub button
+    - Tab widget: General, Additional Files, Advanced, Settings, Config tabs
+    - Output widget: Command preview and build console output
+    - Version widget: Python and PyInstaller version display
+    - Run button: Triggers the build process
+    """
+    
     def __init__(self):
+        """Initialize the main GUI window."""
         super().__init__()
-
-        self.setWindowTitle(PROJECT_NAME)
-        self.setGeometry(100, 100, 600, 500)
-        self.setStyleSheet(STYLE_SHEET)
-        layout = QVBoxLayout()
-
-        self.logo_label = QLabel(PROJECT_NAME)
-        self.logo_label.setStyleSheet(PROJECT_NAME_STYLE)
-        layout.addWidget(self.logo_label)
-
-        self.version_label = QLabel(f"Version {PROJECT_VERSION}")
-        self.version_label.setStyleSheet(PROJECT_VERSION_STYLE)
-        layout.addWidget(self.version_label)
-
-        self.github_button = QPushButton("Visit on GitHub")
-        self.github_button.setStyleSheet(GITHUB_BUTTON_STYLE)
-        self.github_button.clicked.connect(self.open_github)
-        layout.addWidget(self.github_button)
-
+        self.config_manager = ConfigManager()
+        self.command_builder = CommandBuilder()
+        self.version_checker = VersionChecker()
+        self.build_config = BuildConfig()
+        
+        self.setWindowTitle("PyInstaller GUI")
+        
+        # Load window icon from app.png in the same directory
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.png")
+        if os.path.exists(icon_path):
+            pixmap = QPixmap(icon_path)
+            if not pixmap.isNull():
+                self.setWindowIcon(QIcon(pixmap))
+        
+        self.setGeometry(100, 100, 950, 750)
+        
+        self.main_layout = QVBoxLayout()
+        self.main_layout.setSpacing(10)
+        self.main_layout.setContentsMargins(15, 15, 15, 15)
+        
+        self.setup_ui()
+        self.setup_connections()
+        self.display_versions()
+        self.apply_theme()
+    
+    def setup_ui(self):
+        """Setup the user interface by creating and arranging all widgets."""
+        self.header = HeaderWidget()
+        
         self.tabs = QTabWidget()
-        layout.addWidget(self.tabs)
-
-        self.general_tab = QWidget()
-        self.icon_tab = QWidget()
-        self.additional_files_tab = QWidget()
-        self.advanced_tab = QWidget()
-        self.settings_tab = QWidget()
-
+        
+        self.general_tab = GeneralTab()
+        self.files_tab = FilesTab()
+        self.advanced_tab = AdvancedTab()
+        self.settings_tab = SettingsTab()
+        self.config_tab = ConfigTab()
+        
         self.tabs.addTab(self.general_tab, "General")
-        self.tabs.addTab(self.additional_files_tab, "Additional Files")
+        self.tabs.addTab(self.files_tab, "Additional Files")
         self.tabs.addTab(self.advanced_tab, "Advanced")
         self.tabs.addTab(self.settings_tab, "Settings")
-
-        self.general_layout = QVBoxLayout(self.general_tab)
-        self.general_tab.setLayout(self.general_layout)
-
-        self.additional_files_layout = QVBoxLayout(self.additional_files_tab)
-        self.additional_files_tab.setLayout(self.additional_files_layout)
-
-        self.advanced_layout = QVBoxLayout(self.advanced_tab)
-        self.advanced_tab.setLayout(self.advanced_layout)
-
-        self.settings_layout = QVBoxLayout(self.settings_tab)
-        self.settings_tab.setLayout(self.settings_layout)
-
-
-        self.script_label = QLabel("Select script:")
-        self.script_path = QLineEdit()
-        self.script_path.setPlaceholderText("Enter script location...")
-        self.browse_button = QPushButton("Browse")
-        self.browse_button.clicked.connect(self.browse_script)
-
-        file_layout = QHBoxLayout()
-        file_layout.addWidget(self.script_path)
-        file_layout.addWidget(self.browse_button)
-
-        self.general_layout.addWidget(self.script_label)
-        self.general_layout.addLayout(file_layout)
-
-        self.app_name_label = QLabel("Application name:")
-        self.app_name_input = QLineEdit()
-        self.app_name_input.setPlaceholderText("Application name (Default name of the first script)")
-
-        self.general_layout.addWidget(self.app_name_label)
-        self.general_layout.addWidget(self.app_name_input)
-
-
-        self.onefile_checkbox = QCheckBox("OneFile (-F)")
-        self.noconsole_checkbox = QCheckBox("No Console (-w)")
-        self.hidden_imports = QLineEdit()
-        self.hidden_imports.setPlaceholderText("Hidden Imports (comma-separated)")
-
-        self.general_layout.addWidget(self.onefile_checkbox)
-        self.general_layout.addWidget(self.noconsole_checkbox)
-        self.general_layout.addWidget(self.hidden_imports)
-
-
-        self.additional_files_tree = QTreeWidget()
-        self.additional_files_tree.setHeaderLabels(["Name", "Type", "Action"])
-        self.additional_files_tree.setColumnWidth(0, 300)
-        self.additional_files_tree.setColumnWidth(1, 100)
-        self.additional_files_tree.setColumnWidth(2, 80)
-        self.additional_files_tree.setRootIsDecorated(False)
-
-        self.add_files_button = QPushButton("Add Files")
-        self.add_files_button.clicked.connect(self.add_files)
-
-        self.add_folder_button = QPushButton("Add Folder")
-        self.add_folder_button.clicked.connect(self.add_folder)
-
-        self.add_binary_button = QPushButton("Add Binary")
-        self.add_binary_button.clicked.connect(self.add_binary)
-
-        self.additional_files_group = QGroupBox("Additional Files")
-        additional_files_layout = QVBoxLayout()
-        additional_files_layout.addWidget(self.add_files_button)
-        additional_files_layout.addWidget(self.add_folder_button)
-        additional_files_layout.addWidget(self.add_binary_button)
-        additional_files_layout.addWidget(self.additional_files_tree)
-        self.additional_files_group.setLayout(additional_files_layout)
-
-        self.additional_files_layout.addWidget(self.additional_files_group)
-
-
-        self.output_folder_label = QLabel("Select Output Folder:")
-        self.output_folder_path = QLineEdit()
-        self.output_folder_path.setPlaceholderText("Setting the program output location")
-        self.output_folder_button = QPushButton("Browse Output Folder")
-        self.output_folder_button.clicked.connect(self.browse_output_folder)
-
-        folder_layout = QHBoxLayout()
-        folder_layout.addWidget(self.output_folder_path)
-        folder_layout.addWidget(self.output_folder_button)
-
-        self.settings_layout.addWidget(self.output_folder_label)
-        self.settings_layout.addLayout(folder_layout)
-
-        self.icon_path = QLineEdit()
-        self.icon_path.setPlaceholderText("Icon File (.ico for Windows, .icns for Mac)")
-        self.browse_icon_button = QPushButton("Browse Icon")
-        self.browse_icon_button.clicked.connect(self.browse_icon)
-
-        icon_layout = QHBoxLayout()
-        icon_layout.addWidget(self.icon_path)
-        icon_layout.addWidget(self.browse_icon_button)
-        self.settings_layout.addLayout(icon_layout)
-
-
-        self.tmpdir_label = QLabel("Runtime Tmpdir:")
-        self.tmpdir_input = QLineEdit()
-        self.tmpdir_input.setPlaceholderText("Specify a temp directory to boost performance")
-        self.settings_layout.addWidget(self.tmpdir_label)
-        self.settings_layout.addWidget(self.tmpdir_input)
-
-        self.custom_commands_label = QLabel("Custom Commands:")
-        self.custom_commands = QLineEdit()
-        self.custom_commands.setPlaceholderText("Enter additional commands here")
-        self.settings_layout.addWidget(self.custom_commands_label)
-        self.settings_layout.addWidget(self.custom_commands)
-
-
-        self.advanced_label = QLabel("Advanced Settings")
-
-        self.log_level_label = QLabel("Log Level:")
-        self.log_level_combo = QComboBox()
-        self.log_level_combo.addItems(["DEBUG", "INFO", "WARN", "ERROR"])
-
-        self.advanced_layout.addWidget(self.log_level_label)
-        self.advanced_layout.addWidget(self.log_level_combo)
-
-
-        self.upx_label = QLabel("UPX Directory:")
-        self.upx_path = QLineEdit()
-        self.upx_path.setPlaceholderText("Set the UPX path to compress binary files")
-        self.upx_button = QPushButton("Browse")
-        self.upx_button.clicked.connect(self.select_upx_dir)
-
-        upx_layout = QHBoxLayout()
-        upx_layout.addWidget(self.upx_path)
-        upx_layout.addWidget(self.upx_button)
-        self.advanced_layout.addWidget(self.upx_label)
-        self.advanced_layout.addLayout(upx_layout)
-
-
-        self.debug_label = QLabel("Debug Mode:")
-        self.debug_combo = QComboBox()
-        self.debug_combo.addItems(["None", "Imports", "All", "NoArchive"])
-
-        self.advanced_layout.addWidget(self.debug_label)
-        self.advanced_layout.addWidget(self.debug_combo)
-
-        self.key_label = QLabel("Encryption Key:")
-        self.key_input = QLineEdit()
-        self.key_input.setPlaceholderText("Enter your encryption key here")
-
-        self.advanced_layout.addWidget(self.key_label)
-        self.advanced_layout.addWidget(self.key_input)
-
+        self.tabs.addTab(self.config_tab, "Config")
         
-
-        self.cmd_clean = QCheckBox("--clean (Clear PyInstaller cache and temp files before building.)")
-
-        self.advanced_layout.addWidget(self.cmd_clean)
-
-
-        self.command_preview = QTextEdit()
-        self.command_preview.setReadOnly(True)
-        self.command_preview.setFixedHeight(60)
-        self.command_preview_label = QLabel("Generated Command:")
-        self.command_preview_label.setStyleSheet("margin-top: 10px;")
-        layout.addWidget(self.command_preview_label)
-        layout.addWidget(self.command_preview)
-
-        self.output_console = QTextEdit()
-        self.output_console.setReadOnly(True)
-        self.output_console.setFixedHeight(90)
-        layout.addWidget(QLabel("Output Console:"))
-        layout.addWidget(self.output_console)
-
-        self.python_version_label = QLabel("Python Version: --")
-        layout.addWidget(self.python_version_label)
-
-        self.pyinstaller_version_label = QLabel("PyInstaller Version: --")
-        layout.addWidget(self.pyinstaller_version_label)
-
+        self.output_widget = OutputWidget()
+        self.version_widget = VersionWidget()
+        
         self.run_button = QPushButton("Run PyInstaller")
+        self.run_button.setFixedHeight(40)
+        
+        self.main_layout.addWidget(self.header)
+        self.main_layout.addWidget(self.tabs)
+        self.main_layout.addWidget(self.output_widget)
+        self.main_layout.addWidget(self.version_widget)
+        self.main_layout.addWidget(self.run_button)
+        
+        self.setLayout(self.main_layout)
+    
+    def setup_connections(self):
+        """Setup all signal/slot connections between widgets."""
+        # Header connections
+        self.header.theme_toggled.connect(self.toggle_theme)
+        self.header.github_clicked.connect(self.open_github)
+        
+        # General tab connections
+        self.general_tab.script_changed.connect(self.on_script_changed)
+        self.general_tab.app_name_changed.connect(self.on_app_name_changed)
+        self.general_tab.onefile_changed.connect(self.on_onefile_changed)
+        self.general_tab.noconsole_changed.connect(self.on_noconsole_changed)
+        self.general_tab.hidden_imports_changed.connect(self.on_hidden_imports_changed)
+        
+        # Files tab connection
+        self.files_tab.files_changed.connect(self.on_files_changed)
+        
+        # Settings tab connections
+        self.settings_tab.output_folder_changed.connect(self.on_output_folder_changed)
+        self.settings_tab.custom_commands_changed.connect(self.on_custom_commands_changed)
+        self.settings_tab.icon_path_changed.connect(self.on_icon_path_changed)
+        self.settings_tab.tmpdir_changed.connect(self.on_tmpdir_changed)
+        
+        # Advanced tab connections
+        self.advanced_tab.log_level_changed.connect(self.on_log_level_changed)
+        self.advanced_tab.upx_dir_changed.connect(self.on_upx_dir_changed)
+        self.advanced_tab.debug_mode_changed.connect(self.on_debug_mode_changed)
+        self.advanced_tab.clean_changed.connect(self.on_clean_changed)
+        
+        # Config tab connections
+        self.config_tab.config_imported.connect(self.on_config_imported)
+        
+        # Update config preview when any setting changes (for live preview)
+        self.general_tab.script_changed.connect(self.update_config_preview)
+        self.general_tab.app_name_changed.connect(self.update_config_preview)
+        self.general_tab.onefile_changed.connect(self.update_config_preview)
+        self.general_tab.noconsole_changed.connect(self.update_config_preview)
+        self.general_tab.hidden_imports_changed.connect(self.update_config_preview)
+        self.files_tab.files_changed.connect(self.update_config_preview)
+        self.settings_tab.output_folder_changed.connect(self.update_config_preview)
+        self.settings_tab.custom_commands_changed.connect(self.update_config_preview)
+        self.settings_tab.icon_path_changed.connect(self.update_config_preview)
+        self.settings_tab.tmpdir_changed.connect(self.update_config_preview)
+        self.advanced_tab.log_level_changed.connect(self.update_config_preview)
+        self.advanced_tab.upx_dir_changed.connect(self.update_config_preview)
+        self.advanced_tab.debug_mode_changed.connect(self.update_config_preview)
+        self.advanced_tab.clean_changed.connect(self.update_config_preview)
+        
+        # Run button connection
         self.run_button.clicked.connect(self.run_pyinstaller)
-
-        layout.addWidget(self.run_button)
-
-        self.setLayout(layout)
-
-        self.display_versions()
-
-        self.script_path.textChanged.connect(self.update_command)
-        self.app_name_input.textChanged.connect(self.update_command)
-        self.onefile_checkbox.toggled.connect(self.update_command)
-        self.noconsole_checkbox.toggled.connect(self.update_command)
-        self.hidden_imports.textChanged.connect(self.update_command)
-        self.output_folder_path.textChanged.connect(self.update_command)
-        self.custom_commands.textChanged.connect(self.update_command)
-        self.icon_path.textChanged.connect(self.update_command)
-        self.additional_files_tree.itemChanged.connect(self.update_command)
-        self.log_level_combo.currentIndexChanged.connect(self.update_command)
-        self.debug_combo.currentTextChanged.connect(self.update_command)
-        self.cmd_clean.toggled.connect(self.update_command)
-        self.tmpdir_input.textChanged.connect(self.update_command)
-        self.key_input.textChanged.connect(self.update_command)
-
-
-    def select_upx_dir(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "Select UPX Directory")
-        if dir_path:
-            self.upx_path.setText(dir_path)
-            self.update_command()
-
-    def browse_output_folder(self):
-        folder_name = QFileDialog.getExistingDirectory(self, "Select Output Folder")
-        if folder_name:
-            self.output_folder_path.setText(folder_name)
-
+    
+    def get_current_config_dict(self) -> dict:
+        """
+        Get current configuration as dictionary.
+        
+        Converts the current BuildConfig object into a serializable dictionary
+        suitable for JSON export.
+        
+        Returns:
+            Dictionary containing all current build configuration settings.
+        """
+        config = {
+            "script_path": str(self.build_config.script_path) if self.build_config.script_path else "",
+            "app_name": self.build_config.app_name,
+            "onefile": self.build_config.onefile,
+            "noconsole": self.build_config.noconsole,
+            "hidden_imports": self.build_config.hidden_imports,
+            "icon_path": str(self.build_config.icon_path) if self.build_config.icon_path else "",
+            "output_folder": str(self.build_config.output_folder) if self.build_config.output_folder else "",
+            "additional_files": [
+                {"path": item.path, "type": str(item.file_type)} 
+                for item in self.build_config.additional_files
+            ],
+            "log_level": self.build_config.log_level,
+            "upx_dir": str(self.build_config.upx_dir) if self.build_config.upx_dir else "",
+            "debug_mode": self.build_config.debug_mode,
+            "clean_cache": self.build_config.clean_cache,
+            "tmpdir": self.build_config.tmpdir,
+            "custom_commands": self.build_config.custom_commands
+        }
+        return config
+    
+    def update_config_preview(self, *args):
+        """
+        Update the config preview in Config tab.
+        
+        Called whenever any configuration setting changes to keep the
+        preview in sync with the current state.
+        """
+        config_dict = self.get_current_config_dict()
+        self.config_tab.update_config_preview(config_dict)
+    
+    def on_config_imported(self, config: dict):
+        """
+        Handle imported configuration.
+        
+        Applies all settings from an imported configuration dictionary
+        to the respective UI elements.
+        
+        Args:
+            config: Configuration dictionary to apply.
+        """
+        try:
+            # General settings
+            if config.get("script_path"):
+                self.general_tab.script_path.setText(config["script_path"])
+            
+            if config.get("app_name"):
+                self.general_tab.app_name_input.setText(config["app_name"])
+            
+            self.general_tab.onefile_checkbox.setChecked(config.get("onefile", False))
+            self.general_tab.noconsole_checkbox.setChecked(config.get("noconsole", False))
+            
+            if config.get("hidden_imports"):
+                self.general_tab.hidden_imports.setText(", ".join(config["hidden_imports"]))
+            
+            # File settings
+            if config.get("additional_files"):
+                for file_item in config["additional_files"]:
+                    path = file_item.get("path", "")
+                    file_type_str = file_item.get("type", "FILE")
+                    
+                    if "FILE" in file_type_str.upper():
+                        self.files_tab.file_tree.add_file(path, FileType.FILE)
+                    elif "FOLDER" in file_type_str.upper():
+                        self.files_tab.file_tree.add_file(path, FileType.FOLDER)
+                    elif "BINARY" in file_type_str.upper():
+                        self.files_tab.file_tree.add_file(path, FileType.BINARY)
+            
+            # Output settings
+            if config.get("output_folder"):
+                self.settings_tab.output_folder_path.setText(config["output_folder"])
+            
+            if config.get("icon_path"):
+                self.settings_tab.icon_path.setText(config["icon_path"])
+            
+            if config.get("tmpdir"):
+                self.settings_tab.tmpdir_input.setText(config["tmpdir"])
+            
+            if config.get("custom_commands"):
+                self.settings_tab.custom_commands.setText(config["custom_commands"])
+            
+            # Advanced settings
+            if config.get("log_level"):
+                index = self.advanced_tab.log_level_combo.findText(config["log_level"].upper())
+                if index >= 0:
+                    self.advanced_tab.log_level_combo.setCurrentIndex(index)
+            
+            if config.get("upx_dir"):
+                self.advanced_tab.upx_path.setText(config["upx_dir"])
+            
+            if config.get("debug_mode"):
+                index = self.advanced_tab.debug_combo.findText(config["debug_mode"].lower())
+                if index >= 0:
+                    self.advanced_tab.debug_combo.setCurrentIndex(index)
+            
+            self.advanced_tab.cmd_clean.setChecked(config.get("clean_cache", False))
+            
+            QMessageBox.information(
+                self, "Import Complete",
+                "Configuration has been applied successfully."
+            )
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Import Error",
+                f"Error applying configuration:\n{str(e)}"
+            )
+    
+    def on_script_changed(self, path: str):
+        """
+        Handle script path change.
+        
+        Args:
+            path: New script path.
+        """
+        self.build_config.script_path = Path(path) if path else None
+        self.update_command()
+    
+    def on_app_name_changed(self, name: str):
+        """
+        Handle app name change.
+        
+        Args:
+            name: New application name.
+        """
+        self.build_config.app_name = name
+        self.update_command()
+    
+    def on_onefile_changed(self, checked: bool):
+        """
+        Handle onefile option change.
+        
+        Args:
+            checked: True if onefile mode is enabled.
+        """
+        self.build_config.onefile = checked
+        self.update_command()
+    
+    def on_noconsole_changed(self, checked: bool):
+        """
+        Handle noconsole option change.
+        
+        Args:
+            checked: True if console window should be hidden.
+        """
+        self.build_config.noconsole = checked
+        self.update_command()
+    
+    def on_hidden_imports_changed(self, imports: str):
+        """
+        Handle hidden imports change.
+        
+        Parses comma-separated string into a list of module names.
+        
+        Args:
+            imports: Comma-separated list of hidden imports.
+        """
+        if imports:
+            self.build_config.hidden_imports = [imp.strip() for imp in imports.split(',') if imp.strip()]
+        else:
+            self.build_config.hidden_imports = []
+        self.update_command()
+    
+    def on_files_changed(self, items: list):
+        """
+        Handle additional files change.
+        
+        Args:
+            items: List of FileItem objects.
+        """
+        self.build_config.additional_files = items
+        self.update_command()
+    
+    def on_output_folder_changed(self, folder: str):
+        """
+        Handle output folder change.
+        
+        Args:
+            folder: New output folder path.
+        """
+        self.build_config.output_folder = Path(folder) if folder else None
+        self.update_command()
+    
+    def on_custom_commands_changed(self, commands: str):
+        """
+        Handle custom commands change.
+        
+        Args:
+            commands: Additional PyInstaller command-line arguments.
+        """
+        self.build_config.custom_commands = commands
+        self.update_command()
+    
+    def on_icon_path_changed(self, path: str):
+        """
+        Handle icon path change.
+        
+        Args:
+            path: Path to the icon file.
+        """
+        self.build_config.icon_path = Path(path) if path else None
+        self.update_command()
+    
+    def on_tmpdir_changed(self, tmpdir: str):
+        """
+        Handle tmpdir change.
+        
+        Args:
+            tmpdir: Custom temporary directory path.
+        """
+        self.build_config.tmpdir = tmpdir
+        self.update_command()
+    
+    def on_log_level_changed(self, level: str):
+        """
+        Handle log level change.
+        
+        Args:
+            level: Log level string (INFO, DEBUG, WARN, etc.).
+        """
+        self.build_config.log_level = level
+        self.update_command()
+    
+    def on_upx_dir_changed(self, path: str):
+        """
+        Handle UPX directory change.
+        
+        Args:
+            path: Path to UPX installation directory.
+        """
+        self.build_config.upx_dir = Path(path) if path else None
+        self.update_command()
+    
+    def on_debug_mode_changed(self, mode: str):
+        """
+        Handle debug mode change.
+        
+        Args:
+            mode: Debug mode (none, all, imports, bootloader, noarchive).
+        """
+        self.build_config.debug_mode = mode.lower()
+        self.update_command()
+    
+    def on_clean_changed(self, checked: bool):
+        """
+        Handle clean cache option change.
+        
+        Args:
+            checked: True if clean cache is enabled.
+        """
+        self.build_config.clean_cache = checked
+        self.update_command()
+    
+    def update_command(self):
+        """
+        Update the command preview.
+        
+        Rebuilds the PyInstaller command based on current configuration
+        and updates the output widget display.
+        """
+        if not self.build_config.script_path:
+            self.output_widget.set_command_text("Error: No script selected!")
+            return
+        
+        self.command_builder.set_config(self.build_config)
+        command = self.command_builder.build()
+        self.output_widget.set_command_text(command)
+    
+    def recolor_icon(self, icon_path: str, color: QColor) -> QIcon:
+        """
+        Recolor an icon to the specified color.
+        
+        Args:
+            icon_path: Path to the source icon file.
+            color: Target color for recoloring.
+            
+        Returns:
+            Recolored QIcon object.
+        """
+        icon = QIcon(icon_path)
+        pixmap = icon.pixmap(16, 16)
+        painter = QPainter(pixmap)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+        painter.fillRect(pixmap.rect(), color)
+        painter.end()
+        return QIcon(pixmap)
+    
+    def apply_theme(self):
+        """Apply the current theme to the entire application."""
+        theme_setting = self.config_manager.get('theme', 'system')
+        
+        if theme_setting == 'system':
+            is_dark = self.config_manager.get_effective_theme() == 'dark'
+            icon_name = "system.svg"
+        elif theme_setting == 'dark':
+            is_dark = True
+            icon_name = "light.svg"
+        else:
+            is_dark = False
+            icon_name = "dark.svg"
+        
+        self.setStyleSheet(get_stylesheet(is_dark))
+        
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        icons_path = os.path.join(base_path, "icons")
+        
+        icon_path = os.path.join(icons_path, icon_name)
+        
+        if icon_name == "system.svg":
+            if is_dark:
+                icon = self.recolor_icon(icon_path, QColor(255, 255, 255))
+            else:
+                icon = self.recolor_icon(icon_path, QColor(0, 0, 0))
+        else:
+            icon = QIcon(icon_path)
+        
+        self.header.set_theme_icon(icon)
+    
+    def toggle_theme(self):
+        """
+        Toggle between theme modes.
+        
+        Cycles through: system -> light -> dark -> system
+        """
+        current = self.config_manager.get('theme', 'system')
+        if current == 'system':
+            self.config_manager.set('theme', 'light')
+        elif current == 'light':
+            self.config_manager.set('theme', 'dark')
+        else:
+            self.config_manager.set('theme', 'system')
+        self.apply_theme()
+    
     def open_github(self):
-        import webbrowser
+        """Open GitHub repository in the default web browser."""
         webbrowser.open("https://github.com/inject3r/pyinstaller-gui")
-
-    def browse_script(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Select Python Script", "", "Python Files (*.py)")
-        if file_name:
-            self.script_path.setText(file_name)
-
-    def browse_icon(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Select Icon", "", "Icon Files (*.ico *.icns)")
-        if file_name:
-            self.icon_path.setText(file_name)
-
-    def add_files(self):
-        file_names, _ = QFileDialog.getOpenFileNames(self, "Select Files", "", "All Files (*)")
-        for file_name in file_names:
-            item = QTreeWidgetItem(self.additional_files_tree)
-            item.setText(0, file_name)
-            item.setText(1, "File")
-
-            delete_button = QPushButton("Delete")
-            delete_button.clicked.connect(lambda _, item=item: self.remove_item(item))
-            self.additional_files_tree.setItemWidget(item, 2, delete_button)
-
-    def add_folder(self):
-        folder_name = QFileDialog.getExistingDirectory(self, "Select Folder")
-        if folder_name:
-            item = QTreeWidgetItem(self.additional_files_tree)
-            item.setText(0, folder_name)
-            item.setText(1, "Folder")
-
-            delete_button = QPushButton("Delete")
-            delete_button.clicked.connect(lambda _, item=item: self.remove_item(item))
-            self.additional_files_tree.setItemWidget(item, 2, delete_button)
-
-    def add_binary(self):
-        item = QTreeWidgetItem(self.additional_files_tree)
-        item.setText(0, "Binary File")
-        item.setText(1, "Binary")
-
-        delete_button = QPushButton("Delete")
-        delete_button.clicked.connect(lambda _, item=item: self.remove_item(item))
-        self.additional_files_tree.setItemWidget(item, 2, delete_button)
-
-    def remove_item(self, item):
-        index = self.additional_files_tree.indexOfTopLevelItem(item)
-        if index != -1:
-            self.additional_files_tree.takeTopLevelItem(index)
-
+    
     def run_pyinstaller(self):
-        command = self.command_preview.toPlainText()
+        """
+        Run PyInstaller with current configuration.
+        
+        Starts a worker thread to execute PyInstaller command, preventing
+        GUI freezing during the build process.
+        """
+        command = self.output_widget.get_command_text()
         if command.startswith("Error"):
             return
-
-        self.output_console.clear()  # Clear the output console before starting
-        self.pyinstaller_thread = PyInstallerThread(command)
-        self.pyinstaller_thread.output_signal.connect(self.update_output_console)
-        self.pyinstaller_thread.start()
-
-    def update_output_console(self, output):
-        self.output_console.append(output)
-        self.output_console.verticalScrollBar().setValue(self.output_console.verticalScrollBar().maximum())
-
-    def update_command(self):
-        script = self.script_path.text()
-        if not script:
-            self.command_preview.setText("Error: No script selected!")
-            return
-
-        command = f'pyinstaller "{script}"'
-
-        if self.app_name_input.text():
-            command += f' --name "{self.app_name_input.text()}"'
-
-        if self.onefile_checkbox.isChecked():
-            command += " --onefile"
-
-        if self.noconsole_checkbox.isChecked():
-            command += " --windowed"
-
-        if self.hidden_imports.text():
-            hidden_imports = self.hidden_imports.text().split(',')
-            for imp in hidden_imports:
-                command += f' --hidden-import {imp.strip()}'
-
-        if self.icon_path.text():
-            command += f' --icon="{self.icon_path.text()}"'
-
-        output_folder = self.output_folder_path.text()
         
-        if output_folder:
-            command += f' --distpath="{output_folder}"'
-
-        for i in range(self.additional_files_tree.topLevelItemCount()):
-            item = self.additional_files_tree.topLevelItem(i)
-            file_path = item.text(0)
-            if item.text(1) == "File":
-                command += f' --add-data "{file_path};."'
-            elif item.text(1) == "Folder":
-                command += f' --add-data "{file_path}/*;."'
-            elif item.text(1) == "Binary":
-                command += f' --add-binary "{file_path};."'
-
-        log_level = self.log_level_combo.currentText()
-        if log_level:
-            command += f" --log-level {log_level}"
-        
-        upx_dir = self.upx_path.text().strip()
-        if upx_dir:
-            command += f' --upx-dir "{upx_dir}"'
-
-        debug_mode = self.debug_combo.currentText().lower()
-        if debug_mode != "none":
-            command += f' --debug {debug_mode}'
-
-        if self.cmd_clean.isChecked():
-            command += " --clean"
-
-        custom_commands = self.custom_commands.text()
-        if custom_commands:
-            command += f' {custom_commands}'
-
-        tmpdir = self.tmpdir_input.text().strip()
-        if tmpdir:
-            command += f' --runtime-tmpdir={tmpdir}'
-
-        encryption_key = self.key_input.text().strip()
-        if encryption_key:
-            command += f' --key {encryption_key}'
-
-
-        self.command_preview.setText(command)
-
+        self.output_widget.clear_output()
+        self.worker = PyInstallerWorker(command)
+        self.worker.output_signal.connect(self.output_widget.append_output)
+        self.worker.start()
+    
     def display_versions(self):
-        try:
-            python_version = subprocess.check_output(["python", "--version"]).decode("utf-8").strip()
-            self.python_version_label.setText(python_version)
-            self.python_version_label.setStyleSheet("color: #f3db5f;margin-top: 10px;")
-        except subprocess.CalledProcessError:
-            self.python_version_label.setText("Python Version: Not Found")
-            self.python_version_label.setStyleSheet("color: red;margin-top: 10px;")
-
-        try:
-            pyinstaller_version = subprocess.check_output(["pyinstaller", "--version"]).decode("utf-8").strip()
-            self.pyinstaller_version_label.setText(f"PyInstaller Version: {pyinstaller_version}")
-            self.pyinstaller_version_label.setStyleSheet("color: #4f5ca1;")
-        except subprocess.CalledProcessError:
-            self.pyinstaller_version_label.setText("PyInstaller Version: Not Found")
-            self.pyinstaller_version_label.setStyleSheet("color: red;")
+        """
+        Display Python and PyInstaller versions.
+        
+        Retrieves version information and updates the version widget.
+        """
+        python_version = self.version_checker.get_python_version()
+        pyinstaller_version = self.version_checker.get_pyinstaller_version()
+        
+        self.version_widget.set_python_version(python_version)
+        self.version_widget.set_pyinstaller_version(pyinstaller_version)

@@ -4,6 +4,66 @@
 
 This document describes contribution guidelines that are specific to PyInstaller GUI. These are mostly guidelines, not strict rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
 
+## Project Structure
+
+```
+pyinstaller-gui/
+├── pyinstaller_gui/
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── __version__.py
+│   ├── gui.py                 # Main GUI window
+│   ├── core/                  # Core functionality
+│   │   ├── command_builder.py # PyInstaller command builder
+│   │   ├── config_manager.py  # Configuration management
+│   │   └── version_checker.py # Version checking
+│   ├── models/                # Data models
+│   │   ├── build_config.py    # Build configuration model
+│   │   └── file_item.py       # File item model
+│   ├── tabs/                  # UI tabs
+│   │   ├── general_tab.py     # General settings
+│   │   ├── files_tab.py       # Additional files
+│   │   ├── advanced_tab.py    # Advanced options
+│   │   ├── settings_tab.py    # Output settings
+│   │   └── config_tab.py      # Config import/export
+│   ├── widgets/               # Custom widgets
+│   │   ├── header_widget.py   # Header with title and buttons
+│   │   ├── output_widget.py   # Command preview and console
+│   │   ├── version_widget.py  # Version display
+│   │   └── file_tree_widget.py # File tree with delete buttons
+│   ├── styles/                # Theme stylesheets
+│   │   ├── themes.py          # Dark and light themes
+│   │   └── constants.py       # Style constants
+│   ├── utils/                 # Utility functions
+│   │   ├── file_utils.py      # File operations
+│   │   ├── path_utils.py      # Path operations
+│   │   └── system_utils.py    # System information
+│   ├── workers/               # Worker threads
+│   │   └── pyinstaller_worker.py # PyInstaller execution
+│   └── icons/                 # Application icons
+│       ├── dark.svg
+│       ├── light.svg
+│       ├── system.svg
+│       └── github.svg
+├── tests/                     # Unit tests
+│   ├── test_build_config.py
+│   ├── test_command_builder.py
+│   ├── test_config_manager.py
+│   ├── test_file_item.py
+│   ├── test_file_utils.py
+│   ├── test_path_utils.py
+│   ├── test_system_utils.py
+│   ├── test_version_checker.py
+│   ├── coverage_html/         # HTML coverage reports
+├── scripts/                   # Helper scripts
+│   ├── tests.sh                # Run tests with coverage
+│   └── test_clean.sh          # Clean test output files
+├── screenshot/                # Screenshots for README
+├── pyproject.toml
+├── README.md
+└── LICENSE
+```
+
 ## Table Of Contents
 
 - [I don't want to read this whole thing, I just have a question!](#i-dont-want-to-read-this-whole-thing-i-just-have-a-question)

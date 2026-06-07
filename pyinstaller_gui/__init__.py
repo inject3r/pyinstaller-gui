@@ -1,3 +1,3 @@
-from .project_info import PROJECT_VERSION
+from .__version__ import __version__, __version_info__
 
-__version__ = PROJECT_VERSION
+__all__ = ["__version__", "__version_info__"]
