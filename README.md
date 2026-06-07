@@ -9,7 +9,7 @@ A powerful GUI wrapper for PyInstaller — convert your Python scripts into stan
 <br/>
 
 <p align="center">
-  <img src="/tests/screenshot/screenshot_1.jpg" alt="PyInstaller GUI Screenshot" width="500">
+  <img src="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_1.jpg?raw=true" alt="PyInstaller GUI Screenshot" width="500">
 </p>
 
 ## Features
@@ -187,19 +187,19 @@ google-chrome tests/coverage_html/index.html
   
   <div style="text-align: center; flex: 1; min-width: 250px;">
     <a href="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_1.jpg" target="_blank">
-      <img src="/tests/screenshot/screenshot_1.jpg" alt="Screenshot 1" style="width: 100%; max-width: 350px; border: 1px solid #ddd; border-radius: 8px; transition: transform 0.2s;">
+      <img src="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_1.jpg?raw=true" alt="Screenshot 1" style="width: 100%; max-width: 350px; border: 1px solid #ddd; border-radius: 8px; transition: transform 0.2s;">
     </a>
   </div>
 
   <div style="text-align: center; flex: 1; min-width: 250px;">
     <a href="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_2.jpg" target="_blank">
-      <img src="/tests/screenshot/screenshot_2.jpg" alt="Screenshot 2" style="width: 100%; max-width: 350px; border: 1px solid #ddd; border-radius: 8px; transition: transform 0.2s;">
+      <img src="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_2.jpg?raw=true" alt="Screenshot 2" style="width: 100%; max-width: 350px; border: 1px solid #ddd; border-radius: 8px; transition: transform 0.2s;">
     </a>
   </div>
 
   <div style="text-align: center; flex: 1; min-width: 250px;">
     <a href="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_3.jpg" target="_blank">
-      <img src="/tests/screenshot/screenshot_3.jpg" alt="Screenshot 3" style="width: 100%; max-width: 350px; border: 1px solid #ddd; border-radius: 8px; transition: transform 0.2s;">
+      <img src="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_3.jpg?raw=true" alt="Screenshot 3" style="width: 100%; max-width: 350px; border: 1px solid #ddd; border-radius: 8px; transition: transform 0.2s;">
     </a>
   </div>
 
@@ -209,19 +209,19 @@ google-chrome tests/coverage_html/index.html
   
   <div style="text-align: center; flex: 1; min-width: 250px;">
     <a href="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_4.jpg" target="_blank">
-      <img src="/tests/screenshot/screenshot_4.jpg" alt="Screenshot 4" style="width: 100%; max-width: 350px; border: 1px solid #ddd; border-radius: 8px; transition: transform 0.2s;">
+      <img src="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_4.jpg?raw=true" alt="Screenshot 4" style="width: 100%; max-width: 350px; border: 1px solid #ddd; border-radius: 8px; transition: transform 0.2s;">
     </a>
   </div>
 
   <div style="text-align: center; flex: 1; min-width: 250px;">
     <a href="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_5.jpg" target="_blank">
-      <img src="/tests/screenshot/screenshot_5.jpg" alt="Screenshot 5" style="width: 100%; max-width: 350px; border: 1px solid #ddd; border-radius: 8px; transition: transform 0.2s;">
+      <img src="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_5.jpg?raw=true" alt="Screenshot 5" style="width: 100%; max-width: 350px; border: 1px solid #ddd; border-radius: 8px; transition: transform 0.2s;">
     </a>
   </div>
 
   <div style="text-align: center; flex: 1; min-width: 250px;">
     <a href="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_6.jpg" target="_blank">
-      <img src="/tests/screenshot/screenshot_6.jpg" alt="Screenshot 6" style="width: 100%; max-width: 350px; border: 1px solid #ddd; border-radius: 8px; transition: transform 0.2s;">
+      <img src="https://github.com/inject3r/pyinstaller-gui/blob/main/tests/screenshot/screenshot_6.jpg?raw=true" alt="Screenshot 6" style="width: 100%; max-width: 350px; border: 1px solid #ddd; border-radius: 8px; transition: transform 0.2s;">
     </a>
   </div>
 
