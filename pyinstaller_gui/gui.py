@@ -2,6 +2,7 @@ import subprocess
 import webbrowser
 import os
 from pathlib import Path
+import re
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QPushButton, QTabWidget, QHBoxLayout,
@@ -501,13 +502,11 @@ class PyInstallerGUI(QWidget):
         webbrowser.open("https://github.com/inject3r/pyinstaller-gui")
     
     def run_pyinstaller(self):
-        """
-        Run PyInstaller with current configuration.
-        
-        Starts a worker thread to execute PyInstaller command, preventing
-        GUI freezing during the build process.
-        """
+        """Run PyInstaller with current configuration."""
         command = self.output_widget.get_command_text()
+
+        command = re.sub(r'<[^>]+>', '', command)
+        
         if command.startswith("Error"):
             return
         
