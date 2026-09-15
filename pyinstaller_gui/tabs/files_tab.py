@@ -126,10 +126,14 @@ class FilesTab(BaseTab):
         
         # File tree
         self.file_tree = FileTreeWidget()
-        self.file_tree.setToolTip("List of additional files/folders to include\nDouble-click to edit")
+        self.file_tree.setToolTip(
+            "List of additional files/folders to include\n"
+            "Double-click the Name column to change the source path\n"
+            "Double-click the Destination column to change where it's placed inside the bundle"
+        )
         self.file_tree.files_changed.connect(self.on_files_changed)
         self.file_tree.itemSelectionChanged.connect(self.on_selection_changed)
-        self.file_tree.itemDoubleClicked.connect(self.edit_selected_item)
+        self.file_tree.itemDoubleClicked.connect(self.on_item_double_clicked)
         
         # Group box
         group_box = QGroupBox("Additional Files")
@@ -145,7 +149,7 @@ class FilesTab(BaseTab):
         self.counter_label.setStyleSheet("color: #7A8089; font-size: 11px; margin-top: 5px;")
         
         # Info label
-        info_label = QLabel("Tip: Added files will be placed in the root directory of your executable")
+        info_label = QLabel("Tip: Double-click the Destination cell to choose a sub-folder inside the bundle (default \".\" = app root)")
         info_label.setStyleSheet("color: #7A8089; font-size: 11px;")
         info_label.setWordWrap(True)
         
@@ -198,13 +202,33 @@ class FilesTab(BaseTab):
         selected_items = self.file_tree.selectedItems()
         self.edit_button.setEnabled(len(selected_items) == 1)
     
+    def on_item_double_clicked(self, item, column: int):
+        """
+        Dispatch a double-click based on which column was activated.
+        
+        Double-clicking the Name column opens a file/folder picker to
+        change the source path. Double-clicking the Destination column
+        starts inline text editing so the user can retype where the item
+        should be placed inside the bundle. Double-clicking any other
+        column (Type, Action) does nothing extra.
+        
+        Args:
+            item: The tree item that was double-clicked.
+            column: The column index that was double-clicked.
+        """
+        if column == 0:
+            self.edit_selected_item()
+        elif column == 2:
+            self.file_tree.editItem(item, 2)
+    
     def edit_selected_item(self):
         """
         Edit the selected file/folder path.
         
         Opens the appropriate file/folder dialog based on the item type.
         Supports File, Folder, and Binary types. Updates the item's path
-        and stored FileItem data. Shows a warning if no item is selected.
+        while preserving its destination, and updates the stored FileItem
+        data. Shows a warning if no item is selected.
         """
         selected_items = self.file_tree.selectedItems()
         if not selected_items:
@@ -214,6 +238,8 @@ class FilesTab(BaseTab):
         item = selected_items[0]
         old_path = item.text(0)
         file_type = item.text(1)
+        existing = item.data(0, Qt.ItemDataRole.UserRole)
+        dest = existing.dest if existing else "."
         
         if file_type == "File":
             new_path, _ = QFileDialog.getOpenFileName(
@@ -247,7 +273,7 @@ class FilesTab(BaseTab):
                 file_type_enum = FileType.BINARY
             
             if file_type_enum:
-                item.setData(0, Qt.ItemDataRole.UserRole, FileItem(new_path, file_type_enum))
+                item.setData(0, Qt.ItemDataRole.UserRole, FileItem(new_path, file_type_enum, dest))
             
             self.on_files_changed()
             QMessageBox.information(self, "Updated", f"Path updated to:\n{new_path}")
@@ -377,7 +403,12 @@ class FilesTab(BaseTab):
         
         <b>Edit Selected:</b><br>
         Change the path of a selected file/folder.<br>
-        Double-click an item to edit it quickly.<br><br>
+        Double-click the Name cell to edit it quickly.<br><br>
+        
+        <b>Destination:</b><br>
+        Double-click the Destination cell to type where the item should be<br>
+        placed inside the bundle (relative to the app's root). Leave it as<br>
+        "." to place the item in the top-level application directory.<br><br>
         
         <b>Remove All:</b><br>
         Clear all files/folders from the list.<br><br>

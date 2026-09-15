@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from enum import Enum, auto
-from pathlib import Path
 
 
 class FileType(Enum):
@@ -34,25 +33,36 @@ class FileItem:
     Represents a file or folder to be added to the build.
     
     This dataclass stores information about an item that should be bundled
-    with the executable. It includes the path to the item and its type.
+    with the executable. It includes the path to the item, its type, and
+    the destination directory inside the bundle.
     
     Attributes:
         path: The filesystem path to the file or folder.
         file_type: The type of item (FILE, FOLDER, or BINARY).
+        dest: Destination directory inside the bundled app, relative to the
+            top-level application directory. Defaults to "." (the root of
+            the bundle).
     
-    The class implements equality and hashing based on both path and type,
-    allowing FileItem objects to be used in sets and as dictionary keys.
+    The class implements equality and hashing based on the path, type, and
+    destination, allowing FileItem objects to be used in sets and as
+    dictionary keys.
     """
     
     path: str
     file_type: FileType
+    dest: str = "."
+    
+    def __post_init__(self):
+        """Normalize an empty/whitespace destination to the bundle root ('.')."""
+        if not self.dest or not str(self.dest).strip():
+            self.dest = "."
     
     def __eq__(self, other):
         """
         Check equality with another object.
         
         Two FileItem objects are considered equal if they have the same
-        path and the same file type.
+        path, file type, and destination.
         
         Args:
             other: The object to compare with.
@@ -62,16 +72,20 @@ class FileItem:
         """
         if not isinstance(other, FileItem):
             return False
-        return self.path == other.path and self.file_type == other.file_type
+        return (
+            self.path == other.path
+            and self.file_type == other.file_type
+            and self.dest == other.dest
+        )
     
     def __hash__(self):
         """
         Compute hash value for the FileItem.
         
-        The hash is based on both the path and file type, ensuring that
-        items with different properties generate different hash values.
+        The hash is based on the path, file type, and destination, ensuring
+        that items with different properties generate different hash values.
         
         Returns:
-            Hash value computed from the path and file_type.
+            Hash value computed from the path, file_type, and dest.
         """
-        return hash((self.path, self.file_type))
+        return hash((self.path, self.file_type, self.dest))
