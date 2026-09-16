@@ -180,7 +180,9 @@ class GeneralTab(QWidget):
         
         self.noconsole_checkbox = QCheckBox("No Console (-w)")
         self.noconsole_checkbox.setToolTip(
-            "Do not provide a console window (Windows only).\n"
+            "Do not provide a console window (Windows and macOS).\n"
+            "On macOS this also triggers building a proper .app bundle.\n"
+            "Ignored on Linux/other *NIX systems.\n"
             "Use this for GUI applications to hide the terminal window."
         )
         
@@ -241,10 +243,16 @@ class GeneralTab(QWidget):
         """
         Handle script path change and update recent files.
         
+        Only records the path in the recent-files list once it points to
+        an existing .py file. Without this check, every keystroke while
+        typing a path manually (rather than using Browse or drag & drop)
+        would get persisted as a "recent" entry, quickly filling the list
+        with incomplete, nonexistent paths.
+        
         Args:
             path: The new script path.
         """
-        if path and path.strip():
+        if path and self.is_valid_script(path):
             self.add_to_recent_files(path)
     
     def add_to_recent_files(self, file_path: str):
@@ -429,7 +437,8 @@ class GeneralTab(QWidget):
         One-file bundles are easier to distribute but take longer to start.<br><br>
         
         <b>No Console (-w):</b><br>
-        Hides the console window (Windows only).<br>
+        Hides the console window on Windows and macOS (on macOS this also<br>
+        builds a proper .app bundle). Ignored on Linux.<br>
         Use this for GUI applications like PyQt, Tkinter, etc.<br><br>
         
         <b>Hidden Imports:</b><br>

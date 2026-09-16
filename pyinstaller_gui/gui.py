@@ -11,10 +11,10 @@ from PyQt6.QtCore import Qt
 
 from .core.config_manager import ConfigManager
 from .core.command_builder import CommandBuilder
-from .core.version_checker import VersionChecker
 from .models.build_config import BuildConfig
 from .models.file_item import FileItem, FileType
 from .workers.pyinstaller_worker import PyInstallerWorker
+from .workers.version_check_worker import VersionCheckWorker
 from .widgets.header_widget import HeaderWidget
 from .widgets.output_widget import OutputWidget
 from .widgets.version_widget import VersionWidget
@@ -49,7 +49,6 @@ class PyInstallerGUI(QWidget):
         super().__init__()
         self.config_manager = ConfigManager()
         self.command_builder = CommandBuilder()
-        self.version_checker = VersionChecker()
         self.build_config = BuildConfig()
         self.worker = None
         
@@ -829,14 +828,57 @@ class PyInstallerGUI(QWidget):
         except OSError as exc:
             QMessageBox.warning(self, "Could Not Open Folder", str(exc))
     
+    def closeEvent(self, event):
+        """
+        Ensure any running background threads are stopped before closing.
+        
+        Qt requires that a QThread not be destroyed while it is still
+        running. Without this, closing the window moments after launch
+        (while the startup version check is still in flight) or while a
+        PyInstaller build is active can print a "QThread: Destroyed while
+        thread is still running" warning or abort the process. This stops
+        an in-progress build and waits briefly for both worker threads to
+        actually finish before letting the window close.
+        
+        Args:
+            event: The QCloseEvent being handled.
+        """
+        if self.worker is not None and self.worker.isRunning():
+            self.worker.stop()
+            self.worker.wait(5000)
+        
+        version_worker = getattr(self, "version_check_worker", None)
+        if version_worker is not None and version_worker.isRunning():
+            version_worker.wait(3000)
+        
+        event.accept()
+    
     def display_versions(self):
         """
         Display Python and PyInstaller versions.
         
-        Retrieves version information and updates the version widget.
+        Kicks off a background VersionCheckWorker rather than shelling out
+        synchronously on the UI thread, so the main window appears
+        immediately instead of freezing for however long the two
+        ``--version`` subprocess calls take (noticeable the first time
+        PyInstaller's module machinery gets imported, or on a slow
+        machine). The labels show a placeholder until the worker reports
+        back.
         """
-        python_version = self.version_checker.get_python_version()
-        pyinstaller_version = self.version_checker.get_pyinstaller_version()
+        self.version_widget.set_python_version("Python Version: checking...")
+        self.version_widget.set_pyinstaller_version("PyInstaller Version: checking...")
         
+        self.version_check_worker = VersionCheckWorker(self)
+        self.version_check_worker.versions_ready.connect(self.on_versions_ready)
+        self.version_check_worker.start()
+    
+    def on_versions_ready(self, python_version: str, pyinstaller_version: str):
+        """
+        Update the version labels once the background check completes.
+        
+        Args:
+            python_version: The detected Python version string.
+            pyinstaller_version: The detected PyInstaller version string.
+        """
         self.version_widget.set_python_version(python_version)
         self.version_widget.set_pyinstaller_version(pyinstaller_version)

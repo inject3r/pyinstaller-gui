@@ -16,6 +16,9 @@ A powerful GUI wrapper for PyInstaller — convert your Python scripts into stan
 
 - **Cross-platform support**: Convert your Python scripts into executables for Windows, macOS, and Linux
 - **Easy-to-use GUI**: No need to remember complex command-line arguments; a simple and intuitive interface
+- **Full modern PyInstaller coverage**: search paths, module excludes, `--collect-all` and friends, package metadata, custom hooks, splash screens, UPX control, bytecode optimization, and dedicated Windows (version info, manifest, UAC, console visibility) and macOS (argv emulation, bundle id, target architecture, code signing) option groups
+- **Per-file destinations**: choose exactly where each bundled file, folder, or binary lands inside the app, not just the bundle root
+- **Cancel a running build**: a Stop button next to Run lets you cancel PyInstaller mid-build
 - **Dark & Light Themes**: Automatic system theme detection with manual override options
 - **Drag & Drop Support**: Simply drag and drop your Python script into the application
 - **Recent Files**: Quickly access recently used scripts from the dropdown menu
@@ -24,8 +27,8 @@ A powerful GUI wrapper for PyInstaller — convert your Python scripts into stan
 - **Search & Filter**: Search and filter additional files in the file tree
 - **Edit Files**: Edit file paths directly or double-click to modify
 - **Copy & Save Logs**: Copy generated commands or save build logs to files
-- **Customizable settings**: Fine-tune various PyInstaller options like adding extra files, hidden imports, and more
-- **Real-time logging**: View everything happening during the conversion process with detailed logs
+- **Customizable settings**: Fine-tune every PyInstaller option that matters, from hidden imports to code signing
+- **Real-time logging**: View everything happening during the conversion process with detailed logs, and open the output folder as soon as the build finishes
 
 ## Installation
 
@@ -68,11 +71,12 @@ pyinstallergui
    - Selecting from **Recent** files dropdown
 3. Configure your build options across the tabs:
    - **General**: Basic options (OneFile, No Console, Hidden Imports)
-   - **Additional Files**: Add files, folders, or binaries to bundle
-   - **Advanced**: Log level, UPX compression, debug mode
-   - **Settings**: Output folder, custom icon, runtime tmpdir
+   - **Additional Files**: Add files, folders, or binaries to bundle, each with its own destination folder inside the app
+   - **Imports & Hooks**: Search paths, excluded modules, `--collect-*` helpers, package metadata, custom hooks, splash screen
+   - **Advanced**: Log level, UPX compression, debug mode, bytecode optimization, stripping, build-behavior toggles
+   - **Settings**: Output folder, custom icon, runtime tmpdir, spec/work folders, and dedicated Windows/macOS option groups
    - **Config**: Export/Import build configurations
-4. Click **Run PyInstaller** to generate the executable
+4. Click **Run PyInstaller** to generate the executable (use **Stop** to cancel a running build)
 
 ### Configuration Management
 
@@ -93,25 +97,34 @@ pyinstallergui
 | Feature | Description |
 |---------|-------------|
 | **OneFile (-F)** | Create a single executable file instead of a folder |
-| **No Console (-w)** | Hide the console window (GUI applications) |
+| **No Console (-w)** | Hide the console window (Windows & macOS; also builds a `.app` bundle on macOS) |
 | **Hidden Imports** | Specify modules that are imported dynamically |
-| **Additional Files** | Include files, folders, or binaries to bundle |
+| **Additional Files** | Include files, folders, or binaries to bundle, each with its own destination inside the app |
+| **Search Paths / Exclude Modules** | Extra import search paths, and modules to leave out of the build |
+| **Collect All / Submodules / Data / Binaries** | Force-bundle everything PyInstaller's static analysis might miss for a package |
+| **Copy Metadata** | Bundle `importlib.metadata` for packages that check their own version/entry points at runtime |
+| **Hooks & Splash** | Custom hook directories, runtime hooks, and an optional startup splash image |
 | **Icon** | Choose a custom icon (.ico for Windows, .icns for macOS) |
 | **Output Folder** | Define where the executable will be saved |
-| **UPX Directory** | Path to UPX for executable compression |
+| **Spec / Work Folders** | Control where the generated `.spec` file and build artifacts are written |
+| **UPX Directory / Disable UPX** | Path to UPX for compression, or turn it off entirely |
+| **Optimize / Strip** | Bytecode optimization level and symbol stripping |
 | **Log Level** | Control build output verbosity (TRACE, DEBUG, INFO, WARN, ERROR, FATAL) |
 | **Debug Mode** | Enable debug features (all, imports, bootloader, noarchive) |
 | **Runtime Tmpdir** | Custom temporary directory for onefile mode |
-| **Clean Cache** | Clear PyInstaller cache before building |
+| **Clean Cache / No Confirm** | Clear PyInstaller cache before building, or skip the overwrite prompt |
+| **Windows Options** | Version info, manifest, UAC elevation, console-hide behavior, disabled traceback dialog |
+| **macOS Options** | Argv emulation, bundle identifier, target architecture, code signing identity/entitlements |
 | **Custom Commands** | Add any additional PyInstaller arguments |
 
 > **Note:** To generate the executable for a specific operating system, you must run this module on that system. For example, to create a Windows executable, you need to run the module on a Windows machine.
 
 ## Requirements
 
-- Python 3.6+
-- PyInstaller 6.11.1+
+- Python 3.9+
+- PyInstaller 6.22.0+
 - PyQt6 6.8.1+
+- darkdetect 0.8.0+ (for automatic system theme detection)
 
 ## Supported Platforms
 

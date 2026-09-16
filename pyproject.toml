@@ -15,7 +15,8 @@ requires-python = ">=3.9"
 keywords = ["gui", "executable", "pyinstaller", "python", "converter", "cross-platform", "windows", "macos", "linux", "build tool", "script to exe", "python packaging", "application builder", "standalone app", "no coding", "desktop app", "code bundler"]
 dependencies = [
     "PyQt6>=6.8.1",
-    "pyinstaller>=6.22.0"
+    "pyinstaller>=6.22.0",
+    "darkdetect>=0.8.0"
 ]
 classifiers = [
     "License :: OSI Approved :: MIT License",
