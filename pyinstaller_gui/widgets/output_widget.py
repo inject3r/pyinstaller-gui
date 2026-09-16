@@ -1,6 +1,7 @@
 """Output widget for displaying command and console output."""
 
 import re
+import shlex
 from datetime import datetime
 
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QTextEdit, QPushButton, QHBoxLayout, QMessageBox, QFileDialog
@@ -248,6 +249,44 @@ class OutputWidget(QWidget):
                     f"Failed to save output log:\n{str(e)}"
                 )
     
+    # Recognized flags (no argument) and options (take a value), used by the
+    # tokenizing highlighter below.
+    _HIGHLIGHT_FLAGS = {
+        '--onefile', '-F', '--onedir', '-D', '--windowed', '-w',
+        '--noconsole', '--console', '-c', '--clean', '--noupx',
+        '--strip', '-s', '--uac-admin', '--uac-uiaccess',
+        '--argv-emulation', '--disable-windowed-traceback',
+        '--bootloader-ignore-signals', '--noconfirm', '-y',
+    }
+    _HIGHLIGHT_OPTIONS = {
+        '--name', '-n', '--distpath', '--workpath', '--specpath',
+        '--add-data', '--add-binary', '--hidden-import', '--hiddenimport',
+        '--exclude-module', '--icon', '-i', '--upx-dir', '--upx-exclude',
+        '--runtime-tmpdir', '--log-level', '--debug', '-d', '--optimize',
+        '-O', '--python-option', '--version-file', '--manifest',
+        '--resource', '-r', '--key', '--paths', '-p', '--collect-all',
+        '--collect-submodules', '--collect-data', '--collect-binaries',
+        '--copy-metadata', '--recursive-copy-metadata',
+        '--additional-hooks-dir', '--runtime-hook', '--splash',
+        '--contents-directory', '--hide-console', '--osx-bundle-identifier',
+        '--target-architecture', '--codesign-identity',
+        '--osx-entitlements-file',
+    }
+    _HIGHLIGHT_EXTENSIONS = ('.py', '.pyw', '.ico', '.icns', '.exe', '.dll', '.so', '.dylib', '.png', '.jpg')
+
+    @staticmethod
+    def _escape_html(text: str) -> str:
+        """
+        Escape a plain-text fragment for safe embedding in Qt rich text.
+        
+        Args:
+            text: Raw, unescaped text.
+        
+        Returns:
+            Text with &, <, and > replaced by their HTML entities.
+        """
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    
     def highlight_command(self, command: str) -> str:
         """
         Highlight PyInstaller command syntax.
@@ -256,8 +295,17 @@ class OutputWidget(QWidget):
         - pyinstaller command: Purple
         - Flags (--onefile, -F, etc.): Blue
         - Options (--name, --distpath, etc.): Green
-        - Strings and paths: Orange
-        - File extensions: Orange bold
+        - Quoted strings/paths: Orange (with file extensions bolded)
+        
+        The command is first tokenized (respecting quoted substrings, and
+        without touching backslashes so Windows paths survive intact), and
+        each token is classified and wrapped in its own HTML span exactly
+        once. This avoids the classic bug of running repeated plain
+        substring replacements on text that already contains previously
+        inserted HTML, which can match fragments of earlier markup (e.g. a
+        naive replace of the short flag "-w" also matches inside the CSS
+        text "font-weight" of a span inserted moments before) and corrupt
+        the whole preview.
         
         Args:
             command: The raw command string to highlight.
@@ -265,56 +313,96 @@ class OutputWidget(QWidget):
         Returns:
             HTML-formatted string with color-coded syntax highlighting.
         """
-        # Colors (will be adapted to theme)
         flag_color = "#2D8FBA"
         option_color = "#28A745"
         string_color = "#FFA500"
         command_color = "#6F42C1"
         
-        # Escape HTML
-        command = command.replace("&", "&amp;")
-        command = command.replace("<", "&lt;")
-        command = command.replace(">", "&gt;")
+        try:
+            tokens = shlex.split(command, posix=False)
+        except ValueError:
+            # Unbalanced quotes (e.g. while the user is still typing in the
+            # custom commands field) - fall back to a naive whitespace split
+            # rather than raising out of the UI.
+            tokens = command.split()
         
-        # Highlight pyinstaller command
-        command = command.replace("pyinstaller", f'<span style="color: {command_color}; font-weight: bold;">pyinstaller</span>')
+        rendered_tokens = []
+        for index, token in enumerate(tokens):
+            # Some options are emitted as a single "--flag=value" token
+            # (no space) rather than two separate tokens. Split that off
+            # first so the option and its quoted value are still colored
+            # independently, without re-scanning already-rendered HTML.
+            eq_match = re.match(r'^(--[A-Za-z0-9-]+)=(.*)$', token) if token.startswith('--') else None
+            if eq_match:
+                flag_part, value_part = eq_match.group(1), eq_match.group(2)
+                flag_html = self._render_plain_token(flag_part, flag_color, option_color, command_color, is_first=False)
+                value_html = self._render_value_token(value_part, string_color)
+                rendered_tokens.append(f'{flag_html}=<wbr>{value_html}')
+                continue
+            
+            is_quoted = len(token) >= 2 and token[0] in ('"', "'") and token[-1] == token[0]
+            if is_quoted:
+                rendered_tokens.append(self._render_value_token(token, string_color))
+            else:
+                rendered_tokens.append(
+                    self._render_plain_token(token, flag_color, option_color, command_color, is_first=(index == 0))
+                )
         
-        # Flags
-        flags = [
-            '--onefile', '-F', '--onedir', '-D', '--windowed', '-w',
-            '--noconsole', '--console', '-c', '--clean', '--noupx',
-            '--strip', '-s', '--uac-admin', '--uac-uiaccess',
-            '--argv-emulation', '--disable-windowed-traceback',
-            '--bootloader-ignore-signals',
-        ]
+        joined = " ".join(rendered_tokens)
+        return f'<div style="font-family: \'Courier New\', monospace; font-size: 12px; line-height: 1.4;">{joined}</div>'
+    
+    def _render_plain_token(self, token: str, flag_color: str, option_color: str, command_color: str, is_first: bool) -> str:
+        """
+        Render a single non-quoted token (the "pyinstaller" command itself,
+        a flag, an option, or plain unrecognized text) as one HTML span.
         
-        for flag in flags:
-            command = command.replace(flag, f'<span style="color: {flag_color}; font-weight: bold;">{flag}</span>')
+        Args:
+            token: The raw, unescaped token text.
+            flag_color: Hex color for boolean flags (e.g. --onefile).
+            option_color: Hex color for value-taking options (e.g. --name).
+            command_color: Hex color for the leading "pyinstaller" token.
+            is_first: True if this is the first token in the command.
         
-        # Options
-        options = [
-            '--name', '-n', '--distpath', '--workpath', '--specpath',
-            '--add-data', '--add-binary', '--hidden-import', '--hiddenimport',
-            '--exclude-module', '--icon', '-i', '--upx-dir', '--runtime-tmpdir',
-            '--log-level', '--debug', '-d', '--optimize', '-O', '--python-option',
-            '--version-file', '--manifest', '--resource', '-r', '--key',
-        ]
+        Returns:
+            An HTML span (or plain escaped text) for this token.
+        """
+        escaped = self._escape_html(token)
+        if is_first and token == "pyinstaller":
+            return f'<span style="color: {command_color}; font-weight: bold;">{escaped}</span>'
+        if token in self._HIGHLIGHT_FLAGS:
+            return f'<span style="color: {flag_color}; font-weight: bold;">{escaped}</span>'
+        if token in self._HIGHLIGHT_OPTIONS:
+            return f'<span style="color: {option_color}; font-weight: bold;">{escaped}</span>'
+        return escaped
+    
+    def _render_value_token(self, token: str, string_color: str) -> str:
+        """
+        Render a single quoted value token (a path, name, or other string
+        argument) as one HTML span, bolding a trailing recognized file
+        extension if present.
         
-        for option in options:
-            command = command.replace(option, f'<span style="color: {option_color}; font-weight: bold;">{option}</span>')
+        Args:
+            token: The raw, unescaped token text, including its surrounding
+                quote characters if any.
+            string_color: Hex color for string/path values.
         
-        # Highlight quoted strings
-        command = re.sub(r'"(.*?)"', f'<span style="color: {string_color};">"\\1"</span>', command)
-        command = re.sub(r"\'(.*?)\'", f"<span style='color: {string_color};'>'\\1'</span>", command)
+        Returns:
+            An HTML span for this token.
+        """
+        is_quoted = len(token) >= 2 and token[0] in ('"', "'") and token[-1] == token[0]
+        quote_char = token[0] if is_quoted else ""
+        inner = token[1:-1] if is_quoted else token
         
-        # Highlight paths
-        command = re.sub(r'([a-zA-Z]:)?[\/][\w\-.\\\/]+', f'<span style="color: {string_color};">\\g<0></span>', command)
-        
-        # Highlight extensions
-        for ext in ['.py', '.ico', '.icns', '.exe', '.dll', '.so', '.dylib']:
-            command = command.replace(ext, f'<span style="color: {string_color}; font-weight: bold;">{ext}</span>')
-        
-        return f'<div style="font-family: \'Courier New\', monospace; font-size: 12px; line-height: 1.4;">{command}</div>'
+        escaped_inner = self._escape_html(inner)
+        lower_inner = inner.lower()
+        matched_ext = next((ext for ext in self._HIGHLIGHT_EXTENSIONS if lower_inner.endswith(ext)), None)
+        if matched_ext:
+            split_at = len(escaped_inner) - len(matched_ext)
+            escaped_inner = (
+                escaped_inner[:split_at]
+                + f'<span style="font-weight: bold;">{escaped_inner[split_at:]}</span>'
+            )
+        return f'<span style="color: {string_color};">{quote_char}{escaped_inner}{quote_char}</span>'
     
     def append_output(self, text: str):
         """

@@ -220,17 +220,31 @@ class ConfigTab(BaseTab):
         files = config.get('additional_files', [])
         if files:
             for i, file_item in enumerate(files, 1):
-                lines.append(f"  {i}. {file_item.get('path', 'Unknown')} ({file_item.get('type', 'Unknown')})")
+                dest = file_item.get('dest', '.')
+                lines.append(f"  {i}. {file_item.get('path', 'Unknown')} ({file_item.get('type', 'Unknown')}) -> {dest}")
         else:
             lines.append("  No additional files")
+        lines.append("")
+        
+        # Imports & hooks
+        lines.append("【IMPORTS & HOOKS】")
+        lines.append(f"  Search Paths: {', '.join(config.get('search_paths', [])) or 'None'}")
+        lines.append(f"  Exclude Modules: {', '.join(config.get('exclude_modules', [])) or 'None'}")
+        lines.append(f"  Collect All: {', '.join(config.get('collect_all', [])) or 'None'}")
+        lines.append(f"  Additional Hooks Dir: {config.get('additional_hooks_dir') or 'Not set'}")
+        lines.append(f"  Splash Image: {config.get('splash_image') or 'Not set'}")
         lines.append("")
         
         # Advanced settings
         lines.append("【ADVANCED SETTINGS】")
         lines.append(f"  Log Level: {config.get('log_level', 'INFO')}")
         lines.append(f"  UPX Directory: {config.get('upx_dir', 'Not set')}")
+        lines.append(f"  No UPX: {config.get('noupx', False)}")
         lines.append(f"  Debug Mode: {config.get('debug_mode', 'none')}")
+        lines.append(f"  Optimize Level: {config.get('optimize_level') or '(default)'}")
+        lines.append(f"  Strip Symbols: {config.get('strip', False)}")
         lines.append(f"  Clean Cache: {config.get('clean_cache', False)}")
+        lines.append(f"  No Confirm: {config.get('noconfirm', False)}")
         lines.append("")
         
         # Output settings
@@ -238,7 +252,26 @@ class ConfigTab(BaseTab):
         lines.append(f"  Output Folder: {config.get('output_folder', 'Not set')}")
         lines.append(f"  Icon Path: {config.get('icon_path', 'Not set')}")
         lines.append(f"  Runtime Tmpdir: {config.get('tmpdir', 'Not set')}")
+        lines.append(f"  Spec File Folder: {config.get('specpath') or 'Not set'}")
+        lines.append(f"  Work Folder: {config.get('workpath') or 'Not set'}")
         lines.append("")
+        
+        # Windows / macOS settings (only shown when something is actually set)
+        windows_keys = ('hide_console', 'version_file', 'manifest_file', 'uac_admin', 'uac_uiaccess', 'disable_windowed_traceback')
+        if any(config.get(k) for k in windows_keys):
+            lines.append("【WINDOWS OPTIONS】")
+            lines.append(f"  Hide Console: {config.get('hide_console', 'none')}")
+            lines.append(f"  UAC Admin: {config.get('uac_admin', False)}")
+            lines.append(f"  UAC UIAccess: {config.get('uac_uiaccess', False)}")
+            lines.append("")
+        
+        macos_keys = ('argv_emulation', 'osx_bundle_identifier', 'target_arch', 'codesign_identity', 'osx_entitlements_file')
+        if any(config.get(k) for k in macos_keys):
+            lines.append("【MACOS OPTIONS】")
+            lines.append(f"  Argv Emulation: {config.get('argv_emulation', False)}")
+            lines.append(f"  Bundle Identifier: {config.get('osx_bundle_identifier') or 'Not set'}")
+            lines.append(f"  Target Architecture: {config.get('target_arch') or '(current)'}")
+            lines.append("")
         
         # Custom commands
         if config.get('custom_commands'):

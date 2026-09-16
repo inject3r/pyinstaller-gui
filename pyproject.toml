@@ -11,25 +11,25 @@ authors = [
 ]
 description = "A powerful GUI wrapper for PyInstaller — convert your Python scripts into standalone executables for Windows, macOS, and Linux with ease."
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.9"
 keywords = ["gui", "executable", "pyinstaller", "python", "converter", "cross-platform", "windows", "macos", "linux", "build tool", "script to exe", "python packaging", "application builder", "standalone app", "no coding", "desktop app", "code bundler"]
 dependencies = [
     "PyQt6>=6.8.1",
-    "pyinstaller>=6.11.1"
+    "pyinstaller>=6.22.0"
 ]
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
 ]
 
 [project.urls]
